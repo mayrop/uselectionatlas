@@ -14,6 +14,8 @@ html = request_url(url)
 soup = BeautifulSoup(html, 'html.parser')
 
 
+# /RESULTS/statesub.php?off=0&year=2016&elect=0&evt=&f=0&fips=51530&submit=Retrieve
+
 my_map = soup.find(id="pe2016.map")
 my_df = pandas.DataFrame(columns=['party', 'count', 'pct', 'state', 'county', 'fips'])
 my_file = Path('uselectionatlas.csv')
@@ -26,19 +28,22 @@ for state_link in my_map.find_all('area'):
     html = request_url(url, state)
     soup = BeautifulSoup(html, 'html.parser')
 
-    state_map = soup.find(id="year_select")
+    options = soup.findAll('select', {'name': 'fips'})
 
-    for county_link in state_map.find_all('area'):
-        url = '{}{}'.format(domain, county_link.get('href')) 
-        county = slugify(county_link.get('alt'))
+    if len(options) == 0:
+        continue
+    
+    for option in options[0].findAll('option'):
+        url = '{}statesub.php?year=2016&fips={}&f=0&off=0&elect=0'
+        url = url.format(domain, option.get('value')) 
+
+        county = slugify(option.get_text())
         html = request_url(url, '{}-{}'.format(state, county))
-
-        par = urlparse.parse_qs(urlparse.urlparse(url).query)
 
         stats = get_stats(html)
         stats['state'] = state
         stats['county'] = county
-        stats['fips'] = par['fips'][0]
+        stats['fips'] = option.get('value')
 
         print('{}-{}'.format(state, county))
 
